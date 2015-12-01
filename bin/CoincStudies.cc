@@ -24,6 +24,8 @@
 #include "TLine.h"
 #include "TROOT.h"
 #include "TFile.h"
+#include "TString.h"
+#include "TClass.h"
 
 /*
   Generate per channel Coinc_Boolean, NCoinc, Double_Column, NEvents, NEmptyEvents
@@ -61,6 +63,22 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
 {
   std::cout << "DataFileName:    " << DataFileName << std::endl;  
   TFile f("CoincStudies.root","RECREATE");
+
+
+  //  std::string const s = DataFileName.find("_");
+  int s = DataFileName.find("_");
+  std::string sub = DataFileName.substr(s);
+
+  std::string prCH = "perCH"+sub;
+  std::string prROC = "perROC"+sub;    
+  std::string mRMS = "meanRMS"+sub;
+    
+  //  std::cout << " S: " << s << " Substring: " <<  sub << std::endl;
+
+  //  std::string perCh = "perCH_"+ yymmdd + "." + hhmmss + ".txt";
+
+  //  TString const perCh = "perCH_"+ yymmdd + "." + hhmmss + ".txt";
+
   
   // Set some basic style
   PLTU::SetStyle();
@@ -117,16 +135,17 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
   
   int t0 = 0; int ientry = 0;
 
+  
 
   // ******************************** Output Files **********************************//
 
-  std::ofstream perChannel ("coincCH_DC.txt");
+  std::ofstream perChannel (prCH.c_str());
   if(perChannel.is_open()){
   
-    std::ofstream perROC ("coincROC_DC.txt");
+    std::ofstream perROC (prROC.c_str());
     if(perROC.is_open()){
 
-      std::ofstream meanRMS ("meanRMS_DC.txt");
+      std::ofstream meanRMS (mRMS.c_str());
       if(meanRMS.is_open()){
       
         meanRMS<< "#Tm" << std::setw(5)<< "RxMean" <<std::setw(10) << "RxRMS"<< std::setw(10)
@@ -222,7 +241,8 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
                   SyH->Fill(Sy);                
                 
                   // Accidentals
-                                                  
+
+                  
                   // Fill 4444 cut
                   if (sqrt(Rx) < 0.03 && sqrt(Ry)< 0.03 && sqrt(pow(0.027-Sy,2) + pow((0.007/0.02)*Sx,2)) < 0.007) {
                     nAccTracksC++;                  
@@ -232,6 +252,8 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
                   
                     nAccTracks++;                  
                   }
+                         
+                                    
                                                                
                 }
 
@@ -363,14 +385,15 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
         
           if (aggregateFlag){
 
-            std::cout << snapshotC<<" vars: " <<RxH->GetRMS() << " " << RxH->GetMean()<<" " <<SxH->GetRMS() << " " << SxH->GetMean()<<" "<<RyH->GetRMS() << " " << RyH->GetMean()<<" " <<SyH->GetRMS() << " " << SyH->GetMean()<<std::endl; 
+            std::cout << snapshotC<<" vars: " <<RxH->GetRMS() << " " << RxH->GetMean()<<" " <<SxH->GetRMS()
+                      << " " << SxH->GetMean()<<" "<<RyH->GetRMS() << " " << RyH->GetMean()<<" " <<SyH->GetRMS()
+                      << " " << SyH->GetMean()<<std::endl; 
 
             
-            meanRMS<< snapshotC << std::setw(12)<< RxH->GetMean() <<std::setw(12) << RxH->GetRMS()
-                   << std::setw(12) << RyH->GetMean() << std::setw(12) << RyH->GetRMS()
-                   << std::setw(12)<< SxH->GetMean() <<std::setw(12) << SxH->GetRMS()
-                   << std::setw(12) << SyH->GetMean() << std::setw(12) << SyH->GetRMS() << std::endl;
-            
+            meanRMS<< snapshotC << std::setw(15)<< RxH->GetMean() <<std::setw(15) << RxH->GetRMS()
+                   << std::setw(15) << RyH->GetMean() << std::setw(15) << RyH->GetRMS()
+                   << std::setw(15)<< SxH->GetMean() <<std::setw(15) << SxH->GetRMS()
+                   << std::setw(15) << SyH->GetMean() << std::setw(15) << SyH->GetRMS() << std::endl;
             
             
             RxH->Reset();
@@ -380,7 +403,8 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
 
           
             std::cout << "Number of events in this timeWindow: " << NEvents << std::endl;
-            std::cout << "snapshotC: " << snapshotC << " timeWindow: (" << timeStampWindow[snapshotC].first << " , " << timeStampWindow[snapshotC].second << ")" << std::endl;
+            std::cout << "snapshotC: " << snapshotC << " timeWindow: (" << timeStampWindow[snapshotC].first << " , "
+                      << timeStampWindow[snapshotC].second << ")" << std::endl;
 
 
             int tDC = 0;    // total number of double columns for a particular channel

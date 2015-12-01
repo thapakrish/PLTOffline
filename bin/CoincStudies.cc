@@ -28,25 +28,40 @@
 #include "TClass.h"
 
 /*
-  Generate per channel Coinc_Boolean, NCoinc, Double_Column, NEvents, NEmptyEvents
+  Generate per channel coincidence rates
 
   Event->Telescope->Plane
 
   Double_Columns, DC = Number of double columns in a Plane  
 
-  Coinc_Boolean[chNo] == Every plane has  a hit
-  ==> For every channel, every 5 mins, get Coinc_Boolean count, DC count
+  dCoinc[chNo] == Every plane has  a hit
+  ==> For every channel, every 5 mins, get dCount, DC count
   
-  Coinc_BoolP == Within 3HitPlaneBits, if DC > 3, count++;p->prime
+  DC == Plane->Hits() generates 0-51 cols. Divide them by 2 to get
+  0-26 "pre-double columns". A "pre-double column" is counted as a
+  real double column when they are not adjacent to each other.
   
-  NCoinc[chNo] = min(DC0,DC1,DC2)
-  ==> For every channel, every 5 mins, get NCoinc count
-  NCoincP = Within 3HitPlaneBits, if either of DC >=3, Then get min.
-  
-  NTracks[chNo] = Telescope->NTracks() st. Tracks->NTracks() ==3, which is satisfied by the 3HitPlaneBits condition.
-  NTracksP = ntracks when max(DC0,DC1,DC3) >=3
-  
+perROC Output File::
+  snapshotC = Time in 5 minute interval
+  ch = ChannelNo
+  cdTrackChMap[ch] = boolean track with box cut
+  cdTrackChMapC[ch] = boolean track with circular cut
 
+  cTrackChMap[ch].first = ntracks
+  cTrackChMap[ch].second = ntracks w bug
+
+  chBugMap[ch].first = dCoinc
+  tDC = total dCoinc (over all three planes)
+
+  cAllChMap[ch].first = multiple hit count. defined as min of plane[i] DC's
+  cAllChMap[ch].second = multiple hit count. defined as min of plane[i] DC's w bug
+
+  chBugMap[ch].second = dCoinc with bug
+  NEvents = Total number of events
+  emptyEvents = Total number of empty events
+  timeStampWindow[snapshotC].first = tFrom
+  timeStampWindow[snapshotC].second = tTo
+  
 */
 
 
@@ -73,13 +88,6 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
   std::string prROC = "perROC"+sub;    
   std::string mRMS = "meanRMS"+sub;
     
-  //  std::cout << " S: " << s << " Substring: " <<  sub << std::endl;
-
-  //  std::string perCh = "perCH_"+ yymmdd + "." + hhmmss + ".txt";
-
-  //  TString const perCh = "perCH_"+ yymmdd + "." + hhmmss + ".txt";
-
-  
   // Set some basic style
   PLTU::SetStyle();
 
@@ -116,7 +124,7 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
 
   
 
-  std::map<int,std::pair<int,int> > chBugMap;  // (ch, (dc,dc)), redundant. count of dc per channel
+  std::map<int,std::pair<int,int> > chBugMap;  // (ch, (dCoinc,dc)), redundant. count of dc per channel
   std::map<int,std::pair<int,int> > timeStampWindow; // (tm, (tFrom, tTo))
   std::set<int> snapshotCounter; // Tm, unique set
   
@@ -159,7 +167,7 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
 
         perChannel << "#Tm" << std::setw(5) << "chNo" << std::setw(10) << "dTrack" << std::setw(10)
                    << "dTrackC" << std::setw(10) <<"NTracks" <<std::setw(10)<<"TrDC" << std::setw(10)
-                   << "coinc" <<std::setw(10)<< "tcDC"<<std::setw(10)<<"NCoinc"<<std::setw(10)
+                   << "dCoinc" <<std::setw(10)<< "tcDC"<<std::setw(10)<<"NCoinc"<<std::setw(10)
                    <<"nDC" <<std::setw(10) <<"NdcCount" <<std::setw(10) << "ntgr" << std::setw(10)
                    << "nempty" <<std::setw(12) << "tFrom" <<  std::setw(12) << "tTo"<<"\n";
 
@@ -187,9 +195,8 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
           if (snapshotCounter.count(tmp) == 0){
             snapshotC = tmp;
             snapshotCounter.insert(tmp);
-            std::cout << " Max element: " <<  snapshotCounter.size() << " snapshot: " << snapshotC<< std::endl;
-
-            std::cout << " Making time pairs for snapshot: " << snapshotC<< std::endl;
+            //            std::cout << " Max element: " <<  snapshotCounter.size() << " snapshot: " << snapshotC<< std::endl;
+            //            std::cout << " Making time pairs for snapshot: " << snapshotC<< std::endl;
             int tNow = Event.Time();
             timeStampWindow[snapshotC] = std::make_pair(tLast, tNow);
             tLast = tNow;
@@ -371,6 +378,8 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
               } else {
                 cAllChMap[chNo].first += min_DC;
                 cTrackChMap[chNo].first += ntracks;
+
+                chBugMap[chNo].first += 1;
               }
               
 
@@ -385,10 +394,11 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
         
           if (aggregateFlag){
 
-            std::cout << snapshotC<<" vars: " <<RxH->GetRMS() << " " << RxH->GetMean()<<" " <<SxH->GetRMS()
-                      << " " << SxH->GetMean()<<" "<<RyH->GetRMS() << " " << RyH->GetMean()<<" " <<SyH->GetRMS()
-                      << " " << SyH->GetMean()<<std::endl; 
-
+            /*            
+                          std::cout << snapshotC<<" vars: " <<RxH->GetRMS() << " " << RxH->GetMean()<<" " <<SxH->GetRMS()
+                          << " " << SxH->GetMean()<<" "<<RyH->GetRMS() << " " << RyH->GetMean()<<" " <<SyH->GetRMS()
+                          << " " << SyH->GetMean()<<std::endl; 
+            */
             
             meanRMS<< snapshotC << std::setw(15)<< RxH->GetMean() <<std::setw(15) << RxH->GetRMS()
                    << std::setw(15) << RyH->GetMean() << std::setw(15) << RyH->GetRMS()
@@ -401,11 +411,11 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
             SxH->Reset();
             SyH->Reset();
 
-          
-            std::cout << "Number of events in this timeWindow: " << NEvents << std::endl;
-            std::cout << "snapshotC: " << snapshotC << " timeWindow: (" << timeStampWindow[snapshotC].first << " , "
-                      << timeStampWindow[snapshotC].second << ")" << std::endl;
-
+            /*
+              std::cout << "Number of events in this timeWindow: " << NEvents << std::endl;
+              std::cout << "snapshotC: " << snapshotC << " timeWindow: (" << timeStampWindow[snapshotC].first << " , "
+              << timeStampWindow[snapshotC].second << ")" << std::endl;
+            */
 
             int tDC = 0;    // total number of double columns for a particular channel
           
@@ -429,7 +439,7 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
                 perChannel << snapshotC << std::setw(5) << ch << std::setw(10) << cdTrackChMap[ch]
                            << std::setw(10)<< cdTrackChMapC[ch]<<std::setw(10) << cTrackChMap[ch].first
                            << std::setw(10) << cTrackChMap[ch].second<<std::setw(10)
-                           << cBoolRocMap[it->first].first << std::setw(10) << tDC << std::setw(10)
+                           << chBugMap[ch].first << std::setw(10) << tDC << std::setw(10)
                            << cAllChMap[ch].first << std::setw(10) <<cAllChMap[ch].second
                            << std::setw(10)<<chBugMap[ch].second<< std::setw(10) << NEvents
                            << std::setw(10) << emptyEvents<<  std::setw(12)

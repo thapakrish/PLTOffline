@@ -316,18 +316,21 @@ int CoincStudies(std::string const DataFileName, std::string const GainCalFileNa
                   DC = 0;
                 }
 
+                int setSize = hit_cols_uniq.size();
+                
                 // if there are more than 1 double columns, check for DC "Bug"
                 for (std::map<int, int>::iterator it = hit_cols_uniq.begin(); it !=hit_cols_uniq.end(); ++it){
-                  if(it->first == 0) {
+                  if(setSize == 1) {                    
                     DC = 1;
-                  } else if (hit_cols_uniq[it->first] == hit_cols_uniq[it->first -1]+1) {
-                    continue;
                   } else {
-                    DC++;
+                    if (hit_cols_uniq[it->first] == hit_cols_uniq[it->first -1]+1) {
+                      continue;
+                    } else {
+                      DC++;
+                    }                
                   }
-                
                 }
-            
+                
                 planes_DC[ip] = DC;
               
                 // For this particular ROC, keep track of N_coincidence and N_>=3DC
